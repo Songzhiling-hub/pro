@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:p="http://www.springframework.org/schema/p"
-	xmlns:aop="http://www.springframework.org/schema/aop"
-	xmlns:tx="http://www.springframework.org/schema/tx"
-	xmlns:context="http://www.springframework.org/schema/context"
-	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
-		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
-		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.1.xsd">
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:tx="http://www.springframework.org/schema/tx"
+	   xmlns:p="http://www.springframework.org/schema/p"
+	   xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/p http://www.springframework.org/schema/p/spring-p.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
 	<!-- 开启包扫描 -->
 	<context:component-scan base-package="com.sram.pro"></context:component-scan>
-	
 
 
 	<!-- 读取配置文件 -->
@@ -60,6 +59,57 @@
 	<!-- 自动生成dao  -->
 	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer"
 		  p:sqlSessionFactoryBeanName="sqlSessionFactory"
-		  p:basePackage="com.sram.pro.*.dao"
+		  p:basePackage="com.sram.pro"
 	></bean>
+
+	<!--==============================shiro========================================= -->
+	<!-- 2:配置 shiro核心  也就是 securityManager -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="cacheManager" ref="cacheManager"/>
+		<!-- Single realm app.  If you have multiple realms, use the 'realms' property instead. -->
+		<property name="realm" ref="loginRealm"/>
+	</bean>
+
+	<!-- Let's use some enterprise caching support for better performance.  You can replace this with any enterprise
+	caching framework implementation that you like (Terracotta+Ehcache, Coherence, GigaSpaces, etc -->
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+	</bean>
+	<!--3 -->
+	<bean id="loginRealm" class="com.sram.pro.realm.LoginRealm"></bean>
+
+	<!--4 -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+	<!-- 5 启用shiro注解  但是必须先配置好 lifecycleBeanPostProcessor-->
+	<bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+		  depends-on="lifecycleBeanPostProcessor"/>
+	<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<property name="securityManager" ref="securityManager"/>
+	</bean>
+
+
+
+	<!-- 6 配置shiroFilter的Bean -->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager"/>
+		<property name="loginUrl" value="/pages/login.html"/><!-- 登陆页 -->
+		<property name="successUrl" value="/pages/index.html"/><!-- 登陆成功页 -->
+		<property name="unauthorizedUrl" value="/pages/unauthorized.html"/><!-- 未授权页 -->
+		<!-- 配置 哪些资源需要保护  以及 访问这些资源所需要的权限
+			anon：可以被匿名访问；
+			authc 必须认证（登陆）   -->
+		<property name="filterChainDefinitions">
+			<value>
+				/pages/login.html = anon
+				/user/login = anon
+				<!--				/user/student/create = perms[student:create]-->
+				<!--				/user/a = perms[a/*]-->
+
+				# everything else requires authentication:
+				/** = authc
+			</value>
+		</property>
+	</bean>
+
 </beans>
